@@ -39,12 +39,12 @@ impl World {
 }
 
 impl Object for World {
-    fn hit(&self, ray: Ray, tolerance: Range<f64>) -> Option<Hit> {
+    fn hit(&self, ray: Ray, min_dist: f64, max_dist: f64) -> Option<Hit> {
         let mut closest_hit = None;
 
         // Probably a more expressive way of writing this.
         for object in &self.objects {
-            if let Some(hit) = object.hit(ray, tolerance.clone()) {
+            if let Some(hit) = object.hit(ray, min_dist, max_dist) {
                 if let Some(Hit {
                     distance: closest_distance,
                     ..

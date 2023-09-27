@@ -19,7 +19,7 @@ impl Ray {
         self.origin + self.direction * length
     }
 
-    pub fn hits(&self, object: &dyn Object, tolerance: Range<f64>) -> Option<Hit> {
-        object.hit(*self, tolerance)
+    pub fn hits(&self, object: &dyn Object, min_dist: f64, max_dist: f64) -> Option<Hit> {
+        object.hit(*self, min_dist, max_dist)
     }
 }

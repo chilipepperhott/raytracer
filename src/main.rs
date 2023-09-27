@@ -10,13 +10,13 @@ use object::Object;
 use random::Random;
 use ray::Ray;
 use rayon::prelude::*;
-use ultraviolet::DVec3;
+use ultraviolet::{DRotor3, DVec3};
 use world::World;
 
 fn main() {
-    let width = 500_usize;
-    let height = 500_usize;
-    let samples = 40_usize;
+    let width = 1920_usize;
+    let height = 1080_usize;
+    let samples = 4_usize;
     let max_bounces = 10_usize;
 
     let aspect_ratio: f64 = (width as f64) / (height as f64);
@@ -28,10 +28,12 @@ fn main() {
     let view_x = DVec3::unit_x() * virtual_width;
     let view_y = DVec3::unit_y() * virtual_height;
     let view_z = DVec3::unit_z() * focal_length;
-    let origin = DVec3::unit_y() * 0.0;
-    let top_left_corner = origin - view_x / 2.0 + view_y / 2.0 + view_z;
+    let origin = DVec3::new(0.0, 0.0, -2.0);
+    let mut top_left_corner = (-view_x / 2.0) + (view_y / 2.0) + view_z;
 
-    let world = World::empty()
+    //    top_left_corner.rotate_by(DRotor3::from_rotation_xz(PI / 2.0));
+
+    let mut world = World::empty()
         .with_sphere(
             DVec3::new(0.0, 0.0, 1.0),
             0.5,
@@ -40,13 +42,23 @@ fn main() {
         .with_sphere(
             DVec3::new(0.0, -100.5, 1.0),
             100.0,
-            Material::new_lambertian(DVec3::one()),
+            Material::new_lambertian(DVec3::new(0.8, 0.8, 0.2)),
         )
         .with_sphere(
             DVec3::new(1.0, 0.0, 1.0),
             0.5,
             Material::new_metal(DVec3::unit_z(), 0.3),
         );
+
+    let mut rng = Random::new(2331);
+
+    for _ in 0..100 {
+        world.add_sphere(
+            rng.gen_in_sphere() * 20.0 * DVec3::new(1.0, 0.0, 1.0),
+            rng.gen_f64(0.0..1.0),
+            Material::new_dielectric(1.5),
+        )
+    }
 
     let mut lines: Vec<Vec<u8>> = (0..height)
         .into_par_iter()
@@ -61,7 +73,7 @@ fn main() {
                         let v = (y as f64 + rng.gen_f64(0.0..1.0)) / height as f64;
 
                         sample_ray(
-                            Ray::new(origin, top_left_corner + u * view_x - v * view_y + origin),
+                            Ray::new(origin, top_left_corner + u * view_x - v * view_y),
                             &world,
                             &mut rng,
                             max_bounces,
@@ -88,9 +100,7 @@ fn main() {
     let image =
         DynamicImage::ImageRgb8(RgbImage::from_raw(width as u32, height as u32, image).unwrap());
 
-    viuer::print(&image, &viuer::Config::default()).unwrap();
-
-    image.save("render.png").unwrap();
+    image.save("frames/render.png").unwrap();
 }
 
 fn sample_ray(ray: Ray, object: &dyn Object, rng: &mut Random, max_bounces: usize) -> DVec3 {
@@ -98,13 +108,11 @@ fn sample_ray(ray: Ray, object: &dyn Object, rng: &mut Random, max_bounces: usiz
     let mut current_ray = ray;
 
     for _bounce in 0..max_bounces {
-        if let Some(hit) = current_ray.hits(object, 0.00001..f64::INFINITY) {
+        if let Some(hit) = current_ray.hits(object, 0.00001, f64::INFINITY) {
             // Replace this with the object's color
             bounce_history.push(hit.material);
 
-            current_ray = hit
-                .material
-                .scatter(ray.direction, hit, rng);
+            current_ray = hit.material.scatter(ray.direction, hit, rng);
         } else {
             let mut final_color = sky(ray.direction);
 
